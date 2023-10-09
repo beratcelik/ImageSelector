@@ -17,6 +17,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.imageselector.ui.theme.ImageSelectorTheme
@@ -53,6 +54,7 @@ fun ImageSelectorMain(){
     ) {
         Title(
             modifier = Modifier
+                .fillMaxWidth()
                 .align(alignment = Alignment.CenterHorizontally)
                 .padding(8.dp)
         )
@@ -81,6 +83,7 @@ fun ImageSelectorMain(){
 fun Title(modifier: Modifier){
     Text(
         text = "Image Selector",
+        textAlign = TextAlign.Center,
         style = MaterialTheme.typography.h6,
         modifier = Modifier,
     )
