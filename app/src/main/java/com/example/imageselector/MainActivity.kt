@@ -1,6 +1,7 @@
 package com.example.imageselector
-
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.ImageDecoder
 import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -20,11 +21,17 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.example.imageselector.ui.theme.ImageSelectorTheme
 import coil.compose.LocalImageLoader
 import coil.compose.rememberImagePainter
+import com.example.imageselector.ml.FlowerModel
+import com.example.imageselector.ui.theme.ImageSelectorTheme
+import org.tensorflow.lite.Interpreter
+import org.tensorflow.lite.support.image.TensorImage
+
 
 class MainActivity : ComponentActivity() {
+
+    private lateinit var tflite: Interpreter
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
@@ -34,18 +41,39 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colors.background
                 ) {
-                    ImageSelectorMain()
+                    ImageSelectorMain(::classifyImage)
                 }
             }
         }
     }
+
+    fun classifyImage(imageUri: Uri): String {
+        val source = ImageDecoder.createSource(contentResolver, imageUri)
+        val originalBitmap = ImageDecoder.decodeBitmap(source)
+        val resizedBitmap = Bitmap.createScaledBitmap(originalBitmap, 224, 224, true)
+
+        val bitmapInARGB8888 = resizedBitmap.copy(Bitmap.Config.ARGB_8888, true)
+        val tensorImage = TensorImage.fromBitmap(bitmapInARGB8888)
+
+
+        val model = FlowerModel.newInstance(this)
+        val outputs = model.process(tensorImage)
+        val probability = outputs.probabilityAsCategoryList
+        model.close()
+
+        val maxProb = probability.maxByOrNull { it.score }
+        return maxProb?.label ?: "Unknown"
+    }
+
+
+
 }
 
 @Composable
-fun ImageSelectorMain(){
+fun ImageSelectorMain(classifyFunction: (Uri) -> String){
 
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
-
+    var flowerName by remember { mutableStateOf("") }
 
     Column(
         modifier = Modifier
@@ -65,6 +93,8 @@ fun ImageSelectorMain(){
                 .weight(1f),
             selectedImageUri = selectedImageUri
         )
+        Text(text = flowerName) // Display the flower name
+
         ImageSelectorButton(
             modifier = Modifier
                 .padding(8.dp)
@@ -74,6 +104,20 @@ fun ImageSelectorMain(){
                 selectedImageUri = uri
             }
         )
+
+        ClassifyImageButton(
+            modifier = Modifier
+                .padding(8.dp)
+                .fillMaxWidth()
+                .align(Alignment.CenterHorizontally),
+            onImageClassified = { result ->
+                flowerName = result
+            },
+            selectedImageUri = selectedImageUri,
+            classifyFunction = classifyFunction
+        )
+
+
 
     }
 
@@ -136,6 +180,29 @@ fun ImageSelectorButton(
     }
 }
 
+@Composable
+fun ClassifyImageButton(
+    modifier: Modifier,
+    onImageClassified: (String) -> Unit,
+    selectedImageUri: Uri?,
+    classifyFunction: (Uri) -> String
+) {
+    Button(
+        modifier = modifier,
+        onClick = {
+            if (selectedImageUri != null) {
+                val classificationResult = classifyFunction(selectedImageUri)
+                onImageClassified(classificationResult)
+            } else {
+                onImageClassified("Select an image first")
+            }
+        }
+    ) {
+        Text(text = "Classify Image")
+    }
+}
+
+
 
 @Composable
 fun Greeting(name: String) {
@@ -146,6 +213,6 @@ fun Greeting(name: String) {
 @Composable
 fun DefaultPreview() {
     ImageSelectorTheme {
-        ImageSelectorMain()
+        ImageSelectorMain { _ -> "Mock Flower Name" }
     }
 }
