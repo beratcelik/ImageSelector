@@ -1,14 +1,17 @@
 package com.example.imageselector
+import android.app.Activity
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.ImageDecoder
 import android.net.Uri
 import android.os.Bundle
+import android.provider.MediaStore
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.Button
 import androidx.compose.material.MaterialTheme
@@ -17,6 +20,7 @@ import androidx.compose.material.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -27,6 +31,7 @@ import com.example.imageselector.ml.FlowerModel
 import com.example.imageselector.ui.theme.ImageSelectorTheme
 import org.tensorflow.lite.Interpreter
 import org.tensorflow.lite.support.image.TensorImage
+
 
 
 class MainActivity : ComponentActivity() {
@@ -46,7 +51,6 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
-
     fun classifyImage(imageUri: Uri): String {
         val source = ImageDecoder.createSource(contentResolver, imageUri)
         val originalBitmap = ImageDecoder.decodeBitmap(source)
@@ -61,11 +65,16 @@ class MainActivity : ComponentActivity() {
         val probability = outputs.probabilityAsCategoryList
         model.close()
 
+        /*
+        // Returns the most probable result
         val maxProb = probability.maxByOrNull { it.score }
         return maxProb?.label ?: "Unknown"
+         */
+
+        // Returns the most probable three results
+        return probability.sortedByDescending { it.score }.take(3).joinToString("\n") { "${it.label}: ${(it.score * 100).toInt()}%" }
+
     }
-
-
 
 }
 
@@ -73,7 +82,9 @@ class MainActivity : ComponentActivity() {
 fun ImageSelectorMain(classifyFunction: (Uri) -> String){
 
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
-    var flowerName by remember { mutableStateOf("") }
+    //var flowerName by remember { mutableStateOf("") }
+    var flowerNames by remember { mutableStateOf(listOf("Possibility1", "Possibility2", "Possibility3")) }
+
 
     Column(
         modifier = Modifier
@@ -86,14 +97,27 @@ fun ImageSelectorMain(classifyFunction: (Uri) -> String){
                 .align(alignment = Alignment.CenterHorizontally)
                 .padding(8.dp)
         )
-        ImageHolder(
+        Box(
             modifier = Modifier
                 .padding(8.dp)
                 .fillMaxWidth()
-                .weight(1f),
-            selectedImageUri = selectedImageUri
-        )
-        Text(text = flowerName) // Display the flower name
+                .weight(1f)
+        ) {
+            ImageHolder(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .fillMaxSize(),
+                selectedImageUri = selectedImageUri
+            )
+            ClassificationResults(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)  // Align to the bottom
+                    .fillMaxWidth(),
+                names = flowerNames
+            )
+        }
+
+
 
         ImageSelectorButton(
             modifier = Modifier
@@ -111,7 +135,7 @@ fun ImageSelectorMain(classifyFunction: (Uri) -> String){
                 .fillMaxWidth()
                 .align(Alignment.CenterHorizontally),
             onImageClassified = { result ->
-                flowerName = result
+                flowerNames = listOf(result)
             },
             selectedImageUri = selectedImageUri,
             classifyFunction = classifyFunction
@@ -129,16 +153,12 @@ fun Title(modifier: Modifier){
         text = "Image Selector",
         textAlign = TextAlign.Center,
         style = MaterialTheme.typography.h6,
-        modifier = Modifier,
+        modifier = modifier,
     )
 }
 
-
 @Composable
-fun ImageHolder(
-    modifier: Modifier,
-    selectedImageUri: Uri?
-){
+fun ImageHolder(modifier: Modifier, selectedImageUri: Uri?){
     @OptIn(coil.annotation.ExperimentalCoilApi::class)
     val painter = rememberImagePainter(
         data = selectedImageUri ?: R.drawable.sampleimage,
@@ -147,21 +167,43 @@ fun ImageHolder(
     Image(
         painter = painter,
         contentDescription = if (selectedImageUri != null) null else "Sample Image",
-        contentScale = ContentScale.Fit,
+        contentScale = ContentScale.Crop,  // Change to Crop
         modifier = modifier
     )
 }
 
+
 @Composable
-fun ImageSelectorButton(
-    modifier: Modifier,
-    onImageSelected: (Uri) -> Unit
-){
+fun ClassificationResults(modifier: Modifier, names: List<String>) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(Color.Black.copy(alpha = 0.5f))
+            .padding(8.dp)
+    ) {
+        for (name in names) {
+            Text(
+                text = name,
+                textAlign = TextAlign.Start,
+                style = MaterialTheme.typography.h6,
+                color = Color.White,
+                modifier = Modifier.padding(vertical = 2.dp)
+            )
+        }
+    }
+}
+
+
+@Composable
+fun ImageSelectorButton(modifier: Modifier, onImageSelected: (Uri) -> Unit){
     val galleryLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent(),
-        onResult = { uri: Uri? ->
-            if (uri != null) {
-                onImageSelected(uri) // Invoke the callback with the selected URI
+        contract = ActivityResultContracts.StartActivityForResult(),
+        onResult = { result ->
+            if (result.resultCode == Activity.RESULT_OK) {
+                val uri: Uri? = result.data?.data
+                if (uri != null) {
+                    onImageSelected(uri) // Invoke the callback with the selected URI
+                }
             }
         }
     )
@@ -169,11 +211,8 @@ fun ImageSelectorButton(
     Button(
         modifier = modifier, // Apply the modifier to the Button
         onClick = {
-            val intent = Intent(Intent.ACTION_OPEN_DOCUMENT)
-            val mimeTypes = arrayOf("image/jpeg", "image/png")
-            intent.setTypeAndNormalize("image/*")
-            intent.putExtra(Intent.EXTRA_MIME_TYPES, mimeTypes)
-            galleryLauncher.launch(intent.toString())
+            val intent = Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
+            galleryLauncher.launch(intent)
         }
     ) {
         Text(text = "Select a Photo")
@@ -181,12 +220,7 @@ fun ImageSelectorButton(
 }
 
 @Composable
-fun ClassifyImageButton(
-    modifier: Modifier,
-    onImageClassified: (String) -> Unit,
-    selectedImageUri: Uri?,
-    classifyFunction: (Uri) -> String
-) {
+fun ClassifyImageButton(modifier: Modifier, onImageClassified: (String) -> Unit, selectedImageUri: Uri?, classifyFunction: (Uri) -> String) {
     Button(
         modifier = modifier,
         onClick = {
@@ -200,13 +234,6 @@ fun ClassifyImageButton(
     ) {
         Text(text = "Classify Image")
     }
-}
-
-
-
-@Composable
-fun Greeting(name: String) {
-    Text(text = "Hello $name!")
 }
 
 @Preview(showBackground = true)
