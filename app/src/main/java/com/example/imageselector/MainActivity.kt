@@ -29,14 +29,12 @@ import coil.compose.LocalImageLoader
 import coil.compose.rememberImagePainter
 import com.example.imageselector.ml.FlowerModel
 import com.example.imageselector.ui.theme.ImageSelectorTheme
-import org.tensorflow.lite.Interpreter
 import org.tensorflow.lite.support.image.TensorImage
 
 
 
 class MainActivity : ComponentActivity() {
 
-    private lateinit var tflite: Interpreter
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
@@ -51,7 +49,7 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
-    fun classifyImage(imageUri: Uri): String {
+    private fun classifyImage(imageUri: Uri): String {
         val source = ImageDecoder.createSource(contentResolver, imageUri)
         val originalBitmap = ImageDecoder.decodeBitmap(source)
         val resizedBitmap = Bitmap.createScaledBitmap(originalBitmap, 224, 224, true)
@@ -117,8 +115,6 @@ fun ImageSelectorMain(classifyFunction: (Uri) -> String){
             )
         }
 
-
-
         ImageSelectorButton(
             modifier = Modifier
                 .padding(8.dp)
@@ -140,7 +136,6 @@ fun ImageSelectorMain(classifyFunction: (Uri) -> String){
             selectedImageUri = selectedImageUri,
             classifyFunction = classifyFunction
         )
-
 
 
     }
@@ -240,6 +235,6 @@ fun ClassifyImageButton(modifier: Modifier, onImageClassified: (String) -> Unit,
 @Composable
 fun DefaultPreview() {
     ImageSelectorTheme {
-        ImageSelectorMain { _ -> "Mock Flower Name" }
+        ImageSelectorMain { "Mock Flower Name" }
     }
 }
