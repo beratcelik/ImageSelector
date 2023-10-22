@@ -71,22 +71,44 @@ class FabricModelViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
-
-        private fun convertBitmapToByteBuffer(bitmap: Bitmap): ByteBuffer {
-            val byteBuffer = ByteBuffer.allocateDirect(4 * IMAGE_WIDTH * IMAGE_HEIGHT  * 3)
-            byteBuffer.order(ByteOrder.nativeOrder())
-            val intValues = IntArray(IMAGE_WIDTH * IMAGE_HEIGHT )
-            bitmap.getPixels(intValues, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
-            var pixel = 0
-            for (i in 0 until IMAGE_WIDTH) {
-                for (j in 0 until IMAGE_HEIGHT) {
-                    val `val` = intValues[pixel++]
-                    byteBuffer.putFloat((`val` shr 16 and 0xFF) / 255.0f)
-                    byteBuffer.putFloat((`val` shr 8 and 0xFF) / 255.0f)
-                    byteBuffer.putFloat((`val` and 0xFF) / 255.0f)
-                }
+    // bitmap range [-1,1]
+    private fun convertBitmapToByteBuffer(bitmap: Bitmap): ByteBuffer {
+        val byteBuffer = ByteBuffer.allocateDirect(4 * IMAGE_WIDTH * IMAGE_HEIGHT * 3)
+        byteBuffer.order(ByteOrder.nativeOrder())
+        val intValues = IntArray(IMAGE_WIDTH * IMAGE_HEIGHT)
+        bitmap.getPixels(intValues, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
+        var pixel = 0
+        for (i in 0 until IMAGE_WIDTH) {
+            for (j in 0 until IMAGE_HEIGHT) {
+                val `val` = intValues[pixel++]
+                byteBuffer.putFloat(((`val` shr 16 and 0xFF) / 127.5f) - 1f)
+                byteBuffer.putFloat(((`val` shr 8 and 0xFF) / 127.5f) - 1f)
+                byteBuffer.putFloat(((`val` and 0xFF) / 127.5f) - 1f)
             }
-            return byteBuffer
         }
+        return byteBuffer
+    }
+
+
+    /*
+            // bitmap range [0,1]
+            private fun convertBitmapToByteBuffer(bitmap: Bitmap): ByteBuffer {
+                val byteBuffer = ByteBuffer.allocateDirect(4 * IMAGE_WIDTH * IMAGE_HEIGHT  * 3)
+                byteBuffer.order(ByteOrder.nativeOrder())
+                val intValues = IntArray(IMAGE_WIDTH * IMAGE_HEIGHT )
+                bitmap.getPixels(intValues, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
+                var pixel = 0
+                for (i in 0 until IMAGE_WIDTH) {
+                    for (j in 0 until IMAGE_HEIGHT) {
+                        val `val` = intValues[pixel++]
+                        byteBuffer.putFloat((`val` shr 16 and 0xFF) / 255.0f)
+                        byteBuffer.putFloat((`val` shr 8 and 0xFF) / 255.0f)
+                        byteBuffer.putFloat((`val` and 0xFF) / 255.0f)
+                    }
+                }
+                return byteBuffer
+            }
+
+     */
 
 }
