@@ -106,11 +106,26 @@ fun ImageSelectorScreen(
 @Composable
 fun Title(modifier: Modifier){
     Text(
-        text = "Image Selector",
+        text = "# FabricAI",
         textAlign = TextAlign.Center,
         fontSize = 24.sp,
         modifier = modifier,
     )
+    /*
+    Text(
+        text = "Felpa Moda ve Tekstil",
+        textAlign = TextAlign.Center,
+        fontSize = 16.sp,
+        modifier = Modifier.fillMaxWidth() // To center the text
+    )
+    Text(
+        text = "Artificial Intelligence Project",
+        textAlign = TextAlign.Center,
+        fontSize = 16.sp,
+        modifier = Modifier.fillMaxWidth() // To center the text
+    )
+
+     */
 }
 
 @Composable
